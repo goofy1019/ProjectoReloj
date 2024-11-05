@@ -7,144 +7,133 @@
 * Fecha: 08/11/2024                          *
 * Nombre: Reloj.ino                          *
 **********************************************/
-/////////////////////////////
-// Bibliotecas del sistema //
-////////////////////////////
 
 ///////////////////////////////
 // Definicion de constantes //
 /////////////////////////////
 // Define los botones
-const int setTimeButton = A0;
-const int setAlarmButton = A0;
-const int hourButton = A2;
-const int minuteButton = A3;
-const int secondButton = A4;
+#define setTimeButton A0
+#define setAlarmButton A1
+#define hourButton A2
+#define minuteButton A3
+#define secondButton A4
 
 // Define los pines que se utilizan para el decodificador
-const int pinA = 2;  // BCD A
-const int pinB = 3;  // BCD B
-const int pinC = 4;  // BCD C
-const int pinD = 5;  // BCD D
+#define pinA 2
+#define pinB 3
+#define pinC 4
+#define pinD 5
 
 // Define los pines utilizados para cada digito del display
-const int digit1 = 6;  // Decena de hora
-const int digit2 = 7;  // Unidad de hora
-const int digit3 = 8;  // Decena de minutos
-const int digit4 = 9;  // Unidad de minutos
-const int digit5 = 10; // Decena de segundos
-const int digit6 = 11; // Unidad de segundos
+#define digit1 6  // Decena de hora
+#define digit2 7  // Unidad de hora
+#define digit3 8  // Decena de minutos
+#define digit4 9  // Unidad de minutos
+#define digit5 10 // Decena de segundos
+#define digit6 11 // Unidad de segundos
 
 //////////////////////////////////////
 // Creacion de variables u objetos //
 ////////////////////////////////////
 // Define variable tipo long que almacena el tiempo actual
 unsigned long previousMillis = 0;  // Verifica la ultima actualizacion del reloj, se inicializa en 00 00 00
+                                   // Se utiliza unsigned debido a que el tiempo nunca sera negativo
 
 // Define las variables del tiempo
 int hour = 0, minute = 0, second = 0;  
 
-void setup() {
-  // Initialize serial for debugging
-  Serial.begin(9600);
+//////////////////////////////////////////////////
+// Configuracion e inicializacion del hardware //
+////////////////////////////////////////////////
+void setup() { // Inicializa todo el hardware
+  // Esto es equivalente al BIOS de una computadora
+  pinMode(setTimeButton, INPUT); // Inicializacion del puerto
+  pinMode(hourButton, INPUT); // Inicializacion del puerto
+  pinMode(minuteButton, INPUT); // Inicializacion del puerto
+  pinMode(secondButton, INPUT); // Inicializacion del puerto
 
-  // Initialize button pins with assumed external pull-down resistors
-  pinMode(setTimeButton, INPUT);
-  pinMode(hourButton, INPUT);
-  pinMode(minuteButton, INPUT);
-  pinMode(secondButton, INPUT);
+  pinMode(pinA, OUTPUT); // Inicializacion del puerto
+  pinMode(pinB, OUTPUT); // Inicializacion del puerto
+  pinMode(pinC, OUTPUT); // Inicializacion del puerto
+  pinMode(pinD, OUTPUT); // Inicializacion del puerto
 
-  // Initialize BCD pins
-  pinMode(pinA, OUTPUT);
-  pinMode(pinB, OUTPUT);
-  pinMode(pinC, OUTPUT);
-  pinMode(pinD, OUTPUT);
+  pinMode(digit1, OUTPUT); // Inicializacion del puerto
+  pinMode(digit2, OUTPUT); // Inicializacion del puerto
+  pinMode(digit3, OUTPUT); // Inicializacion del puerto
+  pinMode(digit4, OUTPUT); // Inicializacion del puerto
+  pinMode(digit5, OUTPUT); // Inicializacion del puerto
+  pinMode(digit6, OUTPUT); // Inicializacion del puerto
 
-  // Initialize digit enable pins
-  pinMode(digit1, OUTPUT);
-  pinMode(digit2, OUTPUT);
-  pinMode(digit3, OUTPUT);
-  pinMode(digit4, OUTPUT);
-  pinMode(digit5, OUTPUT);
-  pinMode(digit6, OUTPUT);
+  digitalWrite(digit1, HIGH); // Modifica el digito a inactivo
+  digitalWrite(digit2, HIGH); // Modifica el digito a inactivo
+  digitalWrite(digit3, HIGH); // Modifica el digito a inactivo
+  digitalWrite(digit4, HIGH); // Modifica el digito a inactivo
+  digitalWrite(digit5, HIGH); // Modifica el digito a inactivo
+  digitalWrite(digit6, HIGH); // Modifica el digito a inactivo
+} // Final del setup
 
-  // Set all digits to HIGH (inactive)
-  digitalWrite(digit1, HIGH);
-  digitalWrite(digit2, HIGH);
-  digitalWrite(digit3, HIGH);
-  digitalWrite(digit4, HIGH);
-  digitalWrite(digit5, HIGH);
-  digitalWrite(digit6, HIGH);
-}
+///////////////////////////////////////////////////////
+// Configuracion y operacion normal del dispositivo //
+/////////////////////////////////////////////////////
+void loop() { // Crea un lazo infinito
+  // Esto es el equivalente al OS de una computadora
+  
+  handleButtons(); // Llama a la funcion handleButtons que maneja el estripar de algun boton
 
-void loop() {
-  handleButtons();
-
-  // Update the clock every second
+  // Actualiza el reloj cada segundo (1000 milisegundos)
   if (millis() - previousMillis >= 1000) {
     previousMillis = millis();
     updateClock();
   }
 
-  // Display the current time
-  displayMultiplexed(hour, minute, second);
-}
+  // Despliega el tiempo
+  displayMultiplexed(hour, minute, second); // Llama a la funcion que despliega el tiempo
+} // Final del loop
 
-void handleButtons() {
-  // If setTimeButton is pressed, check individual time adjustment buttons
+////////////////////////////////////////////
+// Definicion de las funciones y metodos //
+//////////////////////////////////////////
+void handleButtons() { // Funcion para manejo de botones
+  // Si el boton de Set Time esta estripado, actualiza la hora dependiendo del boton que se estripe
   if (digitalRead(setTimeButton) == HIGH) {
-    delay(200); // Debounce
+    delay(200); // Antirrebote
 
-    // Adjust hours if hourButton is pressed
+    // Ajusta las horas
     if (digitalRead(hourButton) == HIGH) {
-      delay(200); // Debounce
+      delay(200); // Antirrebote
       hour = (hour + 1) % 24;
-      Serial.print("Set Hour: ");
-      Serial.println(hour);
     }
 
-    // Adjust minutes if minuteButton is pressed
+    // Ajusta los minutos
     if (digitalRead(minuteButton) == HIGH) {
-      delay(200); // Debounce
+      delay(200); // Antirrebote
       minute = (minute + 1) % 60;
-      Serial.print("Set Minute: ");
-      Serial.println(minute);
     }
 
-    // Adjust seconds if secondButton is pressed
+    // Ajusta los segundos
     if (digitalRead(secondButton) == HIGH) {
-      delay(200); // Debounce
+      delay(200); // Antirrebote
       second = (second + 1) % 60;
-      Serial.print("Set Second: ");
-      Serial.println(second);
     }
   }
-}
+} // Final de la funcion
 
-void updateClock() {
+void updateClock() { // Funcion que actualiza el reloj y revisa que no se sobrepase los 60 o las 24
   second++;
   if (second >= 60) {
     second = 0;
-    minute++;
+    minute++; // Agrega un minuto mas si se alcanzan los 60 segundos
     if (minute >= 60) {
       minute = 0;
-      hour++;
+      hour++; // Agrega una hora mas si se alcanzan los 60 min
       if (hour >= 24) {
-        hour = 0;  // Reset to 00:00:00 at midnight
+        hour = 0;  // Reinicia el reloj a 00 00 00
       }
     }
   }
+} // Final de la funcion
 
-  // Debugging: Print the current time to Serial Monitor
-  Serial.print("Time: ");
-  Serial.print(hour);
-  Serial.print(":");
-  Serial.print(minute);
-  Serial.print(":");
-  Serial.println(second);
-}
-
-void displayMultiplexed(int displayHour, int displayMinute, int displaySecond) {
+void displayMultiplexed(int displayHour, int displayMinute, int displaySecond) { // Funcion hecha por ChatGPT para ayudar con el mutiplexing de los sigitos del display
   // Separate hours, minutes, and seconds into individual digits
   int digits[] = {
     displayHour / 10, displayHour % 10,   // Tens and units of hours
@@ -159,17 +148,18 @@ void displayMultiplexed(int displayHour, int displayMinute, int displaySecond) {
   displayDigit(digits[3], digit4);
   displayDigit(digits[4], digit5);
   displayDigit(digits[5], digit6);
-}
+} // Final de la funcion
 
-void displayDigit(int number, int digitPin) {
-  // Convert number to BCD and output to the 74LS48
+
+void displayDigit(int number, int digitPin) { // Funcion hecha por ChatGPT para ayudar con el mutiplexing de los sigitos del display
+  // Logica para escribir al decodificador y pasar de binario a decimal del display
   digitalWrite(pinA, (number & 0x1) ? HIGH : LOW);
   digitalWrite(pinB, (number & 0x2) ? HIGH : LOW);
   digitalWrite(pinC, (number & 0x4) ? HIGH : LOW);
   digitalWrite(pinD, (number & 0x8) ? HIGH : LOW);
 
-  // Enable the correct digit (active LOW)
+  // Habilita el pin del digito
   digitalWrite(digitPin, LOW);
-  delayMicroseconds(1000); // Adjust this delay as needed to stabilize display
-  digitalWrite(digitPin, HIGH); // Turn off digit to avoid ghosting
-}
+  delayMicroseconds(1000);
+  digitalWrite(digitPin, HIGH);
+} // Final de la funcion
