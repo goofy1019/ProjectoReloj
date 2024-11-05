@@ -11,12 +11,20 @@
 // Bibliotecas del sistema //
 ////////////////////////////
 
-#include <RTClib.h>   // Real Time Clock library
+#include <RTClib.h>   // Biblioteca que maneja los RTC (Real Time Clocks)
 #include <Wire.h>
 
 RTC_DS3231 rtc;
 
-// Define BCD input pins for the 74LS48
+// Define constants for pins
+const int setTimeButton = A0;
+const int setAlarmButton = A1;
+const int hourButton = A2;
+const int minuteButton = A3;
+const int secondButton = A4;
+const int buzzerPin = 6;
+
+// Define BCD input pins for the 74LS48 (assuming D2-D5 for one digit)
 const int pinA = 2;  // BCD A
 const int pinB = 3;  // BCD B
 const int pinC = 4;  // BCD C
@@ -29,6 +37,11 @@ const int digit3 = 8;  // Enable pin for the third digit (tens of minutes)
 const int digit4 = 9;  // Enable pin for the fourth digit (units of minutes)
 const int digit5 = 10; // Enable pin for the fifth digit (tens of seconds)
 const int digit6 = 11; // Enable pin for the sixth digit (units of seconds)
+
+int hours = 0, minutes = 0, seconds = 0;
+int alarmHour = 0, alarmMinute = 0, alarmSecond = 0;
+bool alarmSet = false;
+bool alarmActive = false;
 
 void setup() {
   // Initialize serial for debugging
@@ -47,6 +60,23 @@ void setup() {
   pinMode(digit4, OUTPUT);
   pinMode(digit5, OUTPUT);
   pinMode(digit6, OUTPUT);
+
+  pinMode(setTimeButton, INPUT_PULLUP);
+  pinMode(setAlarmButton, INPUT_PULLUP);
+  pinMode(hourButton, INPUT_PULLUP);
+  pinMode(minuteButton, INPUT_PULLUP);
+  pinMode(secondButton, INPUT_PULLUP);
+  pinMode(buzzerPin, OUTPUT);
+
+  // Initialize RTC
+  if (!rtc.begin()) {
+    Serial.println("Couldn't find RTC");
+    while (1);
+  }
+  if (rtc.lostPower()) {
+    Serial.println("RTC lost power, setting time!");
+    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  }
 }
 
 void loop() {
@@ -54,10 +84,66 @@ void loop() {
   int hour = now.hour();
   int minute = now.minute();
   int second = now.second();
+  // Check for button presses to set time or alarm
+  handleButtons();
 
+  // Update the display
   displayTime(hour, minute, second);
+
+  // Check if the alarm should go off
+  if (alarmSet && hours == alarmHour && minutes == alarmMinute && seconds == 0) {
+    activateAlarm();
+  }
+
+  delay(1000);
 }
 
+void handleButtons() {
+  if (digitalRead(setTimeButton) == LOW) {
+    delay(200); // Debounce
+    setTime();
+  }
+  if (digitalRead(setAlarmButton) == LOW) {
+    delay(200); // Debounce
+    setAlarm();
+  }
+}
+
+void setTime() {
+  if (digitalRead(hourButton) == LOW) {
+    hours = (hours + 1) % 24;
+    delay(200);
+  }
+  if (digitalRead(minuteButton) == LOW) {
+    minutes = (minutes + 1) % 60;
+    delay(200);
+  }
+  if (digitalRead(secondButton) == LOW) {
+    seconds = (seconds + 1) % 60;
+    delay(200);
+  }
+  displayTime(hours, minutes, seconds);
+}
+
+void setAlarm() {
+  if (digitalRead(hourButton) == LOW) {
+    alarmHour = (alarmHour + 1) % 24;
+    delay(200);
+  }
+  if (digitalRead(minuteButton) == LOW) {
+    alarmMinute = (alarmMinute + 1) % 60;
+    delay(200);
+  }
+  displayTime(alarmHour, alarmMinute, 0);  // Display the hour and minute only
+}
+
+void activateAlarm() {
+  digitalWrite(buzzerPin, HIGH);
+  delay(1000);  // Buzzer sound duration
+  digitalWrite(buzzerPin, LOW);
+}
+
+// Function to display the time on 7-segment display
 void displayTime(int hour, int minute, int second) {
   // Separate hours, minutes, and seconds into individual digits
   int digits[] = {
@@ -75,6 +161,7 @@ void displayTime(int hour, int minute, int second) {
   displayDigit(digits[5], digit6);  // Units of seconds
 }
 
+// Function to display a single digit on the 74LS48
 void displayDigit(int number, int digitPin) {
   // Convert number to BCD and output to the 74LS48
   digitalWrite(pinA, (number & 0x1) ? HIGH : LOW);
@@ -83,7 +170,7 @@ void displayDigit(int number, int digitPin) {
   digitalWrite(pinD, (number & 0x8) ? HIGH : LOW);
 
   // Enable the correct digit
-  digitalWrite(digitPin, LOW);   // Adjust to HIGH or LOW based on your display's enable logic
-  delayMicroseconds(1000);       // Adjust delay as necessary for stable multiplexing
-  digitalWrite(digitPin, HIGH);  // Turn off digit to avoid ghosting
+  digitalWrite(digitPin, HIGH);
+  delay(2);  // Brief delay to stabilize the display
+  digitalWrite(digitPin, LOW);  // Turn off digit to avoid ghosting
 }
