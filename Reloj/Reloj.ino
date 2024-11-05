@@ -1,39 +1,55 @@
-#include <Wire.h>
-// Define button pins
+/*********************************************
+* Universidad Fidelitas                      *
+* Curso: Programacion y Diseño de Algoritmos *
+* Autor: Adolfo Amador Afonso                *
+*        Edgar Picado                        *
+*        Kevin Esquivel Cartin               *
+* Fecha: 08/11/2024                          *
+* Nombre: Reloj.ino                          *
+**********************************************/
+/////////////////////////////
+// Bibliotecas del sistema //
+////////////////////////////
+
+///////////////////////////////
+// Definicion de constantes //
+/////////////////////////////
+// Define los botones
 const int setTimeButton = A0;
-const int setAlarmButton = A1;
+const int setAlarmButton = A0;
 const int hourButton = A2;
 const int minuteButton = A3;
 const int secondButton = A4;
 
-// Define BCD input pins for the 74LS48
+// Define los pines que se utilizan para el decodificador
 const int pinA = 2;  // BCD A
 const int pinB = 3;  // BCD B
 const int pinC = 4;  // BCD C
 const int pinD = 5;  // BCD D
 
-// Define digit enable pins for each display position
-const int digit1 = 6;  // Enable pin for the first digit (tens of hours)
-const int digit2 = 7;  // Enable pin for the second digit (units of hours)
-const int digit3 = 8;  // Enable pin for the third digit (tens of minutes)
-const int digit4 = 9;  // Enable pin for the fourth digit (units of minutes)
-const int digit5 = 10; // Enable pin for the fifth digit (tens of seconds)
-const int digit6 = 11; // Enable pin for the sixth digit (units of seconds)
+// Define los pines utilizados para cada digito del display
+const int digit1 = 6;  // Decena de hora
+const int digit2 = 7;  // Unidad de hora
+const int digit3 = 8;  // Decena de minutos
+const int digit4 = 9;  // Unidad de minutos
+const int digit5 = 10; // Decena de segundos
+const int digit6 = 11; // Unidad de segundos
 
-unsigned long previousMillis = 0;  // Tracks the last time we updated the clock
-int hour = 0, minute = 0, second = 0;  // Time variables
-int alarmHour = 0, alarmMinute = 0, alarmSecond = 0; // Alarm time variables
+//////////////////////////////////////
+// Creacion de variables u objetos //
+////////////////////////////////////
+// Define variable tipo long que almacena el tiempo actual
+unsigned long previousMillis = 0;  // Verifica la ultima actualizacion del reloj, se inicializa en 00 00 00
 
-enum Mode { NORMAL, SET_TIME, SET_ALARM };
-Mode currentMode = NORMAL;  // Initial mode
+// Define las variables del tiempo
+int hour = 0, minute = 0, second = 0;  
 
 void setup() {
   // Initialize serial for debugging
   Serial.begin(9600);
 
-  // Initialize button pins without pull-up (assuming external pull-down resistors are used)
+  // Initialize button pins with assumed external pull-down resistors
   pinMode(setTimeButton, INPUT);
-  pinMode(setAlarmButton, INPUT);
   pinMode(hourButton, INPUT);
   pinMode(minuteButton, INPUT);
   pinMode(secondButton, INPUT);
@@ -52,7 +68,7 @@ void setup() {
   pinMode(digit5, OUTPUT);
   pinMode(digit6, OUTPUT);
 
-  // Initialize all digits to HIGH (inactive)
+  // Set all digits to HIGH (inactive)
   digitalWrite(digit1, HIGH);
   digitalWrite(digit2, HIGH);
   digitalWrite(digit3, HIGH);
@@ -64,67 +80,44 @@ void setup() {
 void loop() {
   handleButtons();
 
-  // Update the clock every second if in NORMAL mode
-  if (currentMode == NORMAL && millis() - previousMillis >= 1000) {
+  // Update the clock every second
+  if (millis() - previousMillis >= 1000) {
     previousMillis = millis();
     updateClock();
   }
 
-  // Continuously refresh display for smooth multiplexing
-  int displayHour = (currentMode == SET_ALARM) ? alarmHour : hour;
-  int displayMinute = (currentMode == SET_ALARM) ? alarmMinute : minute;
-  int displaySecond = (currentMode == SET_ALARM) ? alarmSecond : second;
-
-  // Refresh each digit
-  displayMultiplexed(displayHour, displayMinute, displaySecond);
+  // Display the current time
+  displayMultiplexed(hour, minute, second);
 }
 
 void handleButtons() {
-  // Switch to Set Time Mode
-  if (digitalRead(setTimeButton) == HIGH) {  // Changed to HIGH
+  // If setTimeButton is pressed, check individual time adjustment buttons
+  if (digitalRead(setTimeButton) == HIGH) {
     delay(200); // Debounce
-    currentMode = (currentMode == SET_TIME) ? NORMAL : SET_TIME;
-    Serial.println("Switched to Set Time Mode");
-  }
 
-  // Switch to Set Alarm Mode
-  if (digitalRead(setAlarmButton) == HIGH) {  // Changed to HIGH
-    delay(200); // Debounce
-    currentMode = (currentMode == SET_ALARM) ? NORMAL : SET_ALARM;
-    Serial.println("Switched to Set Alarm Mode");
-  }
-
-  // Adjust hours in Set Mode
-  if (digitalRead(hourButton) == HIGH) {  // Changed to HIGH
-    delay(200); // Debounce
-    if (currentMode == SET_TIME) {
+    // Adjust hours if hourButton is pressed
+    if (digitalRead(hourButton) == HIGH) {
+      delay(200); // Debounce
       hour = (hour + 1) % 24;
-    } else if (currentMode == SET_ALARM) {
-      alarmHour = (alarmHour + 1) % 24;
+      Serial.print("Set Hour: ");
+      Serial.println(hour);
     }
-    Serial.println("Hour incremented");
-  }
 
-  // Adjust minutes in Set Mode
-  if (digitalRead(minuteButton) == HIGH) {  // Changed to HIGH
-    delay(200); // Debounce
-    if (currentMode == SET_TIME) {
+    // Adjust minutes if minuteButton is pressed
+    if (digitalRead(minuteButton) == HIGH) {
+      delay(200); // Debounce
       minute = (minute + 1) % 60;
-    } else if (currentMode == SET_ALARM) {
-      alarmMinute = (alarmMinute + 1) % 60;
+      Serial.print("Set Minute: ");
+      Serial.println(minute);
     }
-    Serial.println("Minute incremented");
-  }
 
-  // Adjust seconds in Set Mode
-  if (digitalRead(secondButton) == HIGH) {  // Changed to HIGH
-    delay(200); // Debounce
-    if (currentMode == SET_TIME) {
+    // Adjust seconds if secondButton is pressed
+    if (digitalRead(secondButton) == HIGH) {
+      delay(200); // Debounce
       second = (second + 1) % 60;
-    } else if (currentMode == SET_ALARM) {
-      alarmSecond = (alarmSecond + 1) % 60;
+      Serial.print("Set Second: ");
+      Serial.println(second);
     }
-    Serial.println("Second incremented");
   }
 }
 
@@ -151,12 +144,12 @@ void updateClock() {
   Serial.println(second);
 }
 
-void displayMultiplexed(int hour, int minute, int second) {
+void displayMultiplexed(int displayHour, int displayMinute, int displaySecond) {
   // Separate hours, minutes, and seconds into individual digits
   int digits[] = {
-    hour / 10, hour % 10,   // Tens and units of hours
-    minute / 10, minute % 10, // Tens and units of minutes
-    second / 10, second % 10   // Tens and units of seconds
+    displayHour / 10, displayHour % 10,   // Tens and units of hours
+    displayMinute / 10, displayMinute % 10, // Tens and units of minutes
+    displaySecond / 10, displaySecond % 10   // Tens and units of seconds
   };
 
   // Display each digit briefly for multiplexing
@@ -177,6 +170,6 @@ void displayDigit(int number, int digitPin) {
 
   // Enable the correct digit (active LOW)
   digitalWrite(digitPin, LOW);
-  delayMicroseconds(500); // Brief delay to stabilize the display
+  delayMicroseconds(1000); // Adjust this delay as needed to stabilize display
   digitalWrite(digitPin, HIGH); // Turn off digit to avoid ghosting
 }
