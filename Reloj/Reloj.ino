@@ -11,6 +11,7 @@
 ///////////////////////////////
 // Definicion de constantes //
 /////////////////////////////
+
 // Define los botones
 #define setTimeButton A0
 #define setAlarmButton A1
@@ -31,10 +32,12 @@
 #define digit4 9  // Unidad de minutos
 #define digit5 10 // Decena de segundos
 #define digit6 11 // Unidad de segundos
+#define Buzzer 12 //dispositivo emisor de sonido
 
 //////////////////////////////////////
 // Creacion de variables u objetos //
 ////////////////////////////////////
+
 // Define variable tipo long que almacena el tiempo actual
 unsigned long previousMillis = 0;  // Verifica la ultima actualizacion del reloj, se inicializa en 00 00 00
                                    // Se utiliza unsigned debido a que el tiempo nunca sera negativo
@@ -42,12 +45,22 @@ unsigned long previousMillis = 0;  // Verifica la ultima actualizacion del reloj
 // Define las variables del tiempo
 int hour = 0, minute = 0, second = 0;  
 
+//Variables de alarma
+int alarmHour = 0, alarmMinute = 0;
+bool alarmSet = false;
+
+// Estado del programa
+enum Estado { NORMAL, CONFIGURANDO_ALARMA }; //crea el estado nuevo en que se esta configurando la alarma
+Estado estadoActual = NORMAL;                //proporcionado por ChatGPT
+
 //////////////////////////////////////////////////
 // Configuracion e inicializacion del hardware //
 ////////////////////////////////////////////////
+
 void setup() { // Inicializa todo el hardware
   // Esto es equivalente al BIOS de una computadora
   pinMode(setTimeButton, INPUT); // Inicializacion del puerto
+  pinMode(setAlarmButton, INPUT); // Inicializacion del puerto
   pinMode(hourButton, INPUT); // Inicializacion del puerto
   pinMode(minuteButton, INPUT); // Inicializacion del puerto
   pinMode(secondButton, INPUT); // Inicializacion del puerto
@@ -70,6 +83,9 @@ void setup() { // Inicializa todo el hardware
   digitalWrite(digit4, HIGH); // Modifica el digito a inactivo
   digitalWrite(digit5, HIGH); // Modifica el digito a inactivo
   digitalWrite(digit6, HIGH); // Modifica el digito a inactivo
+
+  pinMode (Buzzer, OUTPUT); //configuracion del buzzer
+  digitalWrite(Buzzer, LOW); //Apaga el Buzzer inicialmente
 } // Final del setup
 
 ///////////////////////////////////////////////////////
@@ -93,6 +109,7 @@ void loop() { // Crea un lazo infinito
 ////////////////////////////////////////////
 // Definicion de las funciones y metodos //
 //////////////////////////////////////////
+
 void handleButtons() { // Funcion para manejo de botones
   // Si el boton de Set Time esta estripado, actualiza la hora dependiendo del boton que se estripe
   if (digitalRead(setTimeButton) == HIGH) {
@@ -116,6 +133,24 @@ void handleButtons() { // Funcion para manejo de botones
       second = (second + 1) % 60;
     }
   }
+  // Si el botón de Set Alarm está presionado, entra al modo de ajuste de alarma
+  if (digitalRead(setAlarmButton) == HIGH) {
+    delay(200); // Antirrebote
+    estadoActual = CONFIGURANDO_ALARMA;
+    // Ajusta la hora de la alarma
+    if (digitalRead(hourButton) == HIGH) {
+      delay(200); // Antirrebote
+      alarmHour = (alarmHour + 1) % 60;
+    }
+    // Ajusta los minutos de la alarma
+    if (digitalRead(minuteButton) == HIGH) {
+      delay(200); // Antirrebote
+      alarmMinute = (alarmMinute + 1) % 60;
+    }
+    alarmSet = true; // Indica que la alarma está configurada
+    }else if (estadoActual == CONFIGURANDO_ALARMA) {
+    estadoActual = NORMAL;
+  }
 } // Final de la funcion
 
 void updateClock() { // Funcion que actualiza el reloj y revisa que no se sobrepase los 60 o las 24
@@ -131,9 +166,24 @@ void updateClock() { // Funcion que actualiza el reloj y revisa que no se sobrep
       }
     }
   }
+  // Comprueba si la alarma está configurada y si la hora de la alarma, y la del reloj coinciden
+  if (alarmSet && hour == alarmHour && minute == alarmMinute && second == 0) {
+    digitalWrite(Buzzer, HIGH);
+    delay(2000); // Duración de la alarma
+    digitalWrite(Buzzer, LOW);
+  }
 } // Final de la funcion
 
 void displayMultiplexed(int displayHour, int displayMinute, int displaySecond) { // Funcion hecha por ChatGPT para ayudar con el mutiplexing de los sigitos del display
+  if (estadoActual == CONFIGURANDO_ALARMA) {
+    displayHour = alarmHour;
+    displayMinute = alarmMinute;
+    displaySecond = 0;
+  } else {
+    displayHour = hour;
+    displayMinute = minute;
+    displaySecond = second;
+  }
   // Separate hours, minutes, and seconds into individual digits
   int digits[] = {
     displayHour / 10, displayHour % 10,   // Tens and units of hours
