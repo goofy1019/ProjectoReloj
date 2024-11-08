@@ -44,7 +44,8 @@
 
 // Define variable para almacenar el tiempo
 unsigned long previousMillis = 0;
-unsigned long toneMillis = 0; // Timer for non-blocking tone playback
+unsigned long alarmCycleMillis = 0; // Timer for 1-minute ON/OFF cycles
+unsigned long buzzerMillis = 0; // Timer for 1-second buzzer ON/OFF intervals
 
 // Define las variables del tiempo
 int hour = 0, minute = 0, second = 0;
@@ -53,7 +54,9 @@ int hour = 0, minute = 0, second = 0;
 int alarmHour = 0, alarmMinute = 0;
 bool alarmSet = false;
 int selectedTone = 1; // Tono seleccionado
-bool playingTone = false; // Flag to indicate if a tone is being played
+bool alarmActive = false; // Flag to indicate if the alarm is being played
+bool buzzerOn = false; // Flag to track the 1-second buzzer state
+bool userDeactivatedAlarm = false; // Flag to prevent reactivation until next time
 
 // Estado del programa
 enum Estado { NORMAL, CONFIGURANDO_ALARMA, CONFIGURANDO_TIEMPO };
@@ -97,7 +100,7 @@ void setup() {
 
 void loop() {
   handleButtons();
-
+  
   // Continuously update the clock every second, except in set time mode
   if (millis() - previousMillis >= 1000 && estadoActual != CONFIGURANDO_TIEMPO) {
     previousMillis = millis();
@@ -110,10 +113,14 @@ void loop() {
   } else if (estadoActual == CONFIGURANDO_ALARMA) {
     displayMultiplexed(alarmHour, alarmMinute, 0);
   } else if (estadoActual == CONFIGURANDO_TIEMPO) {
-    displayMultiplexed(hour, minute, second); // Show time being set in set time mode
+    displayMultiplexed(hour, minute, second);
   }
   
-  // Handle tone selection independently, without interrupting the clock
+  // Handle the alarm cycle if it is active
+  if (alarmActive) {
+    handleAlarm();
+  }
+
   handleToneSelection();
 }
 
@@ -122,30 +129,11 @@ void loop() {
 //////////////////////////////////////////
 
 void handleButtons() {
-  // Set Time Mode
-  if (digitalRead(setTimeButton) == HIGH) {
-    delay(200); // Debounce
-    estadoActual = CONFIGURANDO_TIEMPO;
-    
-    if (digitalRead(hourButton) == HIGH) {
-      delay(200); // Debounce
-      hour = (hour + 1) % 24;
-    }
-    if (digitalRead(minuteButton) == HIGH) {
-      delay(200); // Debounce
-      minute = (minute + 1) % 60;
-    }
-    if (digitalRead(secondButton) == HIGH) {
-      delay(200); // Debounce
-      second = (second + 1) % 60;
-    }
-  }
-
   // Set Alarm Mode
-  else if (digitalRead(setAlarmButton) == HIGH) {
+  if (digitalRead(setAlarmButton) == HIGH && estadoActual != CONFIGURANDO_TIEMPO) {
     delay(200); // Debounce
     estadoActual = CONFIGURANDO_ALARMA;
-    
+
     // Adjust alarm hour
     if (digitalRead(hourButton) == HIGH) {
       delay(200);
@@ -161,9 +149,56 @@ void handleButtons() {
     alarmSet = true;
   } 
 
+  // Set Time Mode (only if not already in CONFIGURANDO_ALARMA)
+  else if (digitalRead(setTimeButton) == HIGH && estadoActual != CONFIGURANDO_ALARMA) {
+    delay(200); // Debounce
+    estadoActual = CONFIGURANDO_TIEMPO;
+
+    // Adjust time hour
+    if (digitalRead(hourButton) == HIGH) {
+      delay(200); // Debounce
+      hour = (hour + 1) % 24;
+    }
+    // Adjust time minute
+    if (digitalRead(minuteButton) == HIGH) {
+      delay(200); // Debounce
+      minute = (minute + 1) % 60;
+    }
+    // Adjust time second
+    if (digitalRead(secondButton) == HIGH) {
+      delay(200); // Debounce
+      second = (second + 1) % 60;
+    }
+  }
+
   // Return to normal mode if no configuration button is pressed
-  else if (estadoActual != NORMAL) {
+  else if (digitalRead(setTimeButton) == LOW && digitalRead(setAlarmButton) == LOW) {
     estadoActual = NORMAL;
+  }
+}
+
+// Function to manage the 1-second buzzer ON/OFF cycle while alarm is active
+void handleAlarm() {
+  if (millis() - buzzerMillis >= 1000) { // 1-second interval
+    buzzerMillis = millis();  // Reset timer for next cycle
+    
+    if (buzzerOn) {
+      noTone(Buzzer);  // Turn OFF the buzzer
+      buzzerOn = false;
+    } else {
+      playSelectedTone(); // Turn ON the buzzer with the selected tone
+      buzzerOn = true;
+    }
+  }
+
+  // Check if any button is pressed to deactivate the alarm
+  if (digitalRead(setTimeButton) == HIGH || digitalRead(setAlarmButton) == HIGH ||
+      digitalRead(hourButton) == HIGH || digitalRead(minuteButton) == HIGH ||
+      digitalRead(secondButton) == HIGH) {
+    alarmActive = false;           // Deactivate the alarm
+    userDeactivatedAlarm = true;   // Set flag to prevent reactivation
+    noTone(Buzzer);                // Ensure the buzzer is off
+    buzzerOn = false;              // Reset the buzzer state
   }
 }
 
@@ -182,11 +217,17 @@ void updateClock() {
     }
   }
 
-  // Check if alarm should go off
-  if (alarmSet && hour == alarmHour && minute == alarmMinute && second == 0) {
-    playTone(selectedTone);
-    delay(2000); // Alarm duration
-    digitalWrite(Buzzer, LOW);
+  // Check if alarm should go off and activate immediately
+  if (alarmSet && hour == alarmHour && minute == alarmMinute && !alarmActive && !userDeactivatedAlarm) {
+    alarmActive = true;    // Activate alarm
+    buzzerMillis = millis(); // Start 1-second cycle timer
+    playSelectedTone(); // Immediately activate the buzzer with the selected tone
+    buzzerOn = true;
+  }
+
+  // Reset userDeactivatedAlarm flag if the time no longer matches the alarm time
+  if (hour != alarmHour || minute != alarmMinute) {
+    userDeactivatedAlarm = false;
   }
 }
 
@@ -218,32 +259,25 @@ void displayDigit(int number, int digitPin) {
 
 // Handles tone selection without altering estadoActual or pausing the clock
 void handleToneSelection() {
-  if (digitalRead(toneButton) == HIGH && !playingTone) {
+  if (digitalRead(toneButton) == HIGH && !alarmActive) {
     delay(200); // Debounce
     selectedTone = (selectedTone % 5) + 1; // Cycle through 5 tones
     indicateTone(selectedTone);            // Show the selected tone with LED
-    playTone(selectedTone);                // Play the selected tone briefly
+    playSelectedTone();                    // Play the selected tone briefly
+    delay(200);                            // Brief delay to hear the tone
+    noTone(Buzzer);                        // Stop the tone after selection
   }
 }
 
-// Plays the selected tone for a short time
-void playTone(int tone) {
-  playingTone = true;
-  switch (tone) {
-    case 1: toneFrequency(500); break;
-    case 2: toneFrequency(600); break;
-    case 3: toneFrequency(700); break;
-    case 4: toneFrequency(800); break;
-    case 5: toneFrequency(900); break;
+// Plays the selected tone based on selectedTone
+void playSelectedTone() {
+  switch (selectedTone) {
+    case 1: tone(Buzzer, 500); break;
+    case 2: tone(Buzzer, 600); break;
+    case 3: tone(Buzzer, 700); break;
+    case 4: tone(Buzzer, 800); break;
+    case 5: tone(Buzzer, 900); break;
   }
-  playingTone = false;
-}
-
-// Sets the frequency for each tone
-void toneFrequency(int frequency) {
-  tone(Buzzer, frequency);
-  delay(200);
-  noTone(Buzzer);
 }
 
 // Shows the selected tone on the LED
