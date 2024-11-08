@@ -47,10 +47,10 @@ unsigned long previousMillis = 0;
 unsigned long toneMillis = 0; // Timer for non-blocking tone playback
 
 // Define las variables del tiempo
-int hour = 0, minute = 0, second = 50;
+int hour = 0, minute = 0, second = 0;
 
 // Variables de alarma
-int alarmHour = 0, alarmMinute = 1;
+int alarmHour = 0, alarmMinute = 0;
 bool alarmSet = false;
 int selectedTone = 1; // Tono seleccionado
 bool playingTone = false; // Flag to indicate if a tone is being played
