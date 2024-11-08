@@ -93,7 +93,6 @@ void setup() { // Inicializa todo el hardware
 /////////////////////////////////////////////////////
 void loop() { // Crea un lazo infinito
   // Esto es el equivalente al OS de una computadora
-  
   handleButtons(); // Llama a la funcion handleButtons que maneja el estripar de algun boton
 
   // Actualiza el reloj cada segundo (1000 milisegundos)
