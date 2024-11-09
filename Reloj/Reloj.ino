@@ -2,7 +2,6 @@
 * Universidad Fidelitas                      *
 * Curso: Programacion y Diseño de Algoritmos *
 * Autor: Adolfo Amador Afonso                *
-*        Edgar Picado                        *
 *        Kevin Esquivel Cartin               *
 * Fecha: 08/11/2024                          *
 * Nombre: Reloj.ino                          *
@@ -282,7 +281,7 @@ void playSelectedTone() {
     case 4: tone(Buzzer, 800); break;
     case 5: tone(Buzzer, 900); break;
   }
-}
+} // Final de la funcion
 
 // Muestra el tono elegido en el LED
 void indicateTone(int tone) {
@@ -292,4 +291,4 @@ void indicateTone(int tone) {
     digitalWrite(toneLED, LOW);
     delay(100);
   }
-}
+} // Final de la funcion
